@@ -51,8 +51,21 @@ tokentimefund_contract, tokentimefundcrowdsale_contract = load_contract()
 
 
 st.title("Token Time Fund")
-st.write("Choose an account to get started")
+st.write("Choose an account:")
 accounts = w3.eth.accounts
 address = st.selectbox("Select Account", options=accounts)
 st.markdown("---")
+
+
+balance = w3.eth.getBalance(address)
+st.write('Wei balance for account: {:,}'.format(balance))
+
+token_balance = tokentimefund_contract.functions.balanceOf(address).call()
+st.write('TTF tokens balance for account: {:,}'.format(token_balance))
+
+total_supply = tokentimefund_contract.functions.totalSupply().call()
+st.write('Total TTF token supply: {:,}'.format(total_supply))
+
+total_wei_raised = tokentimefundcrowdsale_contract.functions.weiRaised().call()
+st.write('Total Wei Raised: {:,}'.format(total_wei_raised))
 
