@@ -4,8 +4,12 @@ from web3 import Web3
 from web3.gas_strategies.time_based import medium_gas_price_strategy
 from pathlib import Path
 from dotenv import load_dotenv
+import math
 import streamlit as st
-from hexbytes import HexBytes
+
+from ttf_wallet import get_balance
+from ttf_wallet import send_transaction
+
 
 load_dotenv('ttf.env')
 
@@ -53,9 +57,10 @@ tokentimefund_contract, tokentimefundcrowdsale_contract = load_contract()
 
 
 # Use of accounts from Ganache:
-# Account 0,1 - not used
+# Account 0 - not used
+# Account 1 - dummy wallet to help simulate asset under management increase/decrease
 # Account 2 - for deploying contracts using Remix and Metamask
-# Account 3 - for Wei raised
+# Account 3 - for asset under management/wei raised
 # Account 4 - for TTF tokens bought back from investors, to be burnt
 # Account 5 to 9 - Investors accounts
 accounts = w3.eth.accounts
@@ -64,6 +69,7 @@ investors_accounts = accounts[5:10]
 # Load AUM Wallet (acccounts[3]) address and private key
 aum_wallet_address = accounts[3]
 aum_wallet_private_key = os.getenv('AUMWALLET_PRIVATE_KEY')
+dummy_wallet_private_key = os.getenv('DUMMYWALLET_PRIVATE_KEY')
 
 # Set burn wallet address
 burn_wallet_address = accounts[4]
@@ -83,11 +89,11 @@ st.sidebar.write(tokentimefund_contract_address)
 st.sidebar.write('')
 st.sidebar.write('')
 
-# Show total wei raised in sidebar
+# Show total asset under management in sidebar. wei raised goes into this account
 st.sidebar.write('Asset Under Management (in Wei):')
 aum_placeholder = st.sidebar.empty()
 # aum = tokentimefundcrowdsale_contract.functions.weiRaised().call()
-aum = int(w3.eth.getBalance(aum_wallet_address)) - 100000000000000000000
+aum = int(get_balance(w3, aum_wallet_address)) - 100000000000000000000
 aum_placeholder.markdown('{:,}'.format(aum))
 st.sidebar.write(aum_wallet_address)
 
@@ -102,6 +108,9 @@ st.sidebar.write(burn_wallet_address)
 
 st.sidebar.markdown("---")
 
+st.sidebar.write('For use by Fund Manager. Automated in actual implementation.')
+
+# Simulated. Manual burning of token. In actual implementation, burning will be done automatically
 tokens_burn_placeholder = st.sidebar.empty()
 tokens_amount_to_burn = tokens_burn_placeholder.text_input("Enter number of tokens to burn:", value="0")
 if st.sidebar.button("Burn"):
@@ -115,10 +124,40 @@ if st.sidebar.button("Burn"):
     tokens_burn_wallet = tokentimefund_contract.functions.balanceOf(burn_wallet_address).call()
     burn_balance_placeholder.markdown('{}'.format(tokens_burn_wallet))
 
+st.sidebar.markdown("---")
+
+# Simulated. Change in value of fund. In actual implementation, changes in value will be done automatically
+fund_value_change_placeholder = st.sidebar.empty()
+fund_value_change = fund_value_change_placeholder.text_input("Change in %:", value="0")
+if st.sidebar.button("Change"):
+    change_pct = float(fund_value_change)/100
+    aum_change = int(math.floor(float(aum) * change_pct))
+
+    if aum_change > 0:
+        ## transfer wei from dummy_wallet (accounts[1]) to AUM wallet
+        tx_hash = send_transaction(w3, accounts[1], aum_wallet_address, aum_change, dummy_wallet_private_key)
+        st.sidebar.write(tx_hash)
+    
+    elif aum_change < 0:
+        ## transfer wei from AUM wallet to dummy_wallet (accounts[1])
+        tx_hash = send_transaction(w3, aum_wallet_address, accounts[1], abs(aum_change), aum_wallet_private_key)
+        st.sidebar.write(tx_hash)
+
+    # Update info on display
+    aum = int(get_balance(w3, aum_wallet_address)) - 100000000000000000000
+    aum_placeholder.markdown('{:,}'.format(aum))
+
 
 # Investors panel
 
-st.write('Rate:  1 ETH = 1000000000000000000 wei,  1 token = 1 wei')
+# calculate conversion rate 
+if total_supply > 0:
+    conversion_rate = aum/total_supply
+else:
+    conversion_rate = 1
+
+st.write('1 ETH = 1000000000000000000 wei')
+st.markdown('Conversion rate: 1 token = {} wei'.format(round(conversion_rate,2)))
 st.write('')
 st.write('')
 
@@ -136,8 +175,9 @@ wei_balance_placeholder.markdown('Wei balance: {}'.format(account_balance))
 token_balance = tokentimefund_contract.functions.balanceOf(address).call()
 ttf_balance_placeholder.markdown('TTF token balance: {}'.format(token_balance))
 
-if st.button("Update Page"):
-    x = 1
+# Button that forces page to reload to clear hash messages
+if st.button("Reload Page"):
+    x = 1  # dummy
 
 st.markdown("---")
 
@@ -177,30 +217,9 @@ if st.button("Sell"):
     st.write('Blockchain transaction receipt:', tx_receipt)
 
     ## transfer wei from AUM wallet to investor wallet
-
-    # Set gas price strategy
-    w3.eth.setGasPriceStrategy(medium_gas_price_strategy)
-
-    # build a transaction in a dictionary
-    raw_tx = {
-        'to': address,
-        'from': aum_wallet_address,
-        'value': int(tokens_amount_to_sell),
-        'gas': w3.eth.estimateGas({"to": address, "from": aum_wallet_address, "value": int(tokens_amount_to_sell)}),
-        'gasPrice': 0,
-        'nonce': w3.eth.getTransactionCount(aum_wallet_address)
-    }
-
-
-    # sign the transaction
-    signed_tx = w3.eth.account.sign_transaction(raw_tx, aum_wallet_private_key)
-
-    # send transaction
-    tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-
-    # display transaction hash
+    amount_to_transfer = int(math.floor(float(tokens_amount_to_sell) * conversion_rate))
+    tx_hash = send_transaction(w3, aum_wallet_address, address, amount_to_transfer, aum_wallet_private_key)
     st.write(tx_hash)
-
 
     ## Update information on webpage
     aum = int(w3.eth.getBalance(aum_wallet_address)) - 100000000000000000000
