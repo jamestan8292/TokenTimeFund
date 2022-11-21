@@ -87,7 +87,7 @@ st.sidebar.write('')
 st.sidebar.write('Asset Under Management (in Wei):')
 aum_placeholder = st.sidebar.empty()
 # aum = tokentimefundcrowdsale_contract.functions.weiRaised().call()
-aum = w3.eth.getBalance(aum_wallet_address)
+aum = int(w3.eth.getBalance(aum_wallet_address)) - 100000000000000000000
 aum_placeholder.markdown('{:,}'.format(aum))
 st.sidebar.write(aum_wallet_address)
 
@@ -156,7 +156,7 @@ if st.button("Buy"):
     total_supply = tokentimefund_contract.functions.totalSupply().call()
     total_supply_placeholder.markdown('{:,}'.format(total_supply))
     # total_wei_raised = tokentimefundcrowdsale_contract.functions.weiRaised().call()
-    aum = w3.eth.getBalance(aum_wallet_address)
+    aum = int(w3.eth.getBalance(aum_wallet_address)) - 100000000000000000000
     aum_placeholder.markdown('{:,}'.format(aum))
     account_balance = w3.eth.getBalance(address)
     wei_balance_placeholder.markdown('Wei balance: {}'.format(account_balance))
@@ -203,7 +203,7 @@ if st.button("Sell"):
 
 
     ## Update information on webpage
-    aum = w3.eth.getBalance(aum_wallet_address)
+    aum = int(w3.eth.getBalance(aum_wallet_address)) - 100000000000000000000
     aum_placeholder.markdown('{:,}'.format(aum))
     tokens_burn_wallet = tokentimefund_contract.functions.balanceOf(accounts[4]).call()
     burn_balance_placeholder.markdown('{}'.format(tokens_burn_wallet))
