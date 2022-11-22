@@ -68,8 +68,8 @@ investors_accounts = accounts[5:10]
 
 # Load AUM Wallet (acccounts[3]) address and private key
 aum_wallet_address = accounts[3]
-aum_wallet_private_key = os.getenv('AUMWALLET_PRIVATE_KEY')
-dummy_wallet_private_key = os.getenv('DUMMYWALLET_PRIVATE_KEY')
+aum_wallet_private_key = os.getenv('ACCOUNT3_PRIVATE_KEY')
+dummy_wallet_private_key = os.getenv('ACCOUNT1_PRIVATE_KEY')
 
 # Set burn wallet address
 burn_wallet_address = accounts[4]
@@ -157,7 +157,8 @@ else:
     conversion_rate = 1
 
 st.write('1 ETH = 1000000000000000000 wei')
-st.markdown('Conversion rate: 1 token = {} wei'.format(round(conversion_rate,2)))
+conversion_rate_placeholder = st.empty()
+conversion_rate_placeholder.markdown('Conversion rate: 1 token = {} wei'.format(round(conversion_rate,2)))
 st.write('')
 st.write('')
 
@@ -222,6 +223,8 @@ if st.button("Sell"):
     st.write(tx_hash)
 
     ## Update information on webpage
+    total_supply = tokentimefund_contract.functions.totalSupply().call()
+    total_supply_placeholder.markdown('{:,}'.format(total_supply))
     aum = int(w3.eth.getBalance(aum_wallet_address)) - 100000000000000000000
     aum_placeholder.markdown('{:,}'.format(aum))
     tokens_burn_wallet = tokentimefund_contract.functions.balanceOf(accounts[4]).call()
@@ -229,10 +232,15 @@ if st.button("Sell"):
     account_balance = w3.eth.getBalance(address)
     wei_balance_placeholder.markdown('Wei balance: {}'.format(account_balance))
     token_balance = tokentimefund_contract.functions.balanceOf(address).call()
-    ttf_balance_placeholder.markdown('TTF token balance: {}'.format(token_balance))
+
+
 
 
 
 ### TO DO
-# 1. simulate increase or decrease of AUM wallet due to portforlio performance by moving wei in or out of AUM wallet
-# 2. change the value of tokens by changing the wei-token rate
+# 1.    done - simulate transfer of tokens from AUM wallet to investor when investor sells tokens
+#       The transfer of tokens from AUM wallet to investor wallet should be part of TokenTimeFund.sol
+# 2.    done - simulate increase or decrease of AUM wallet due to portforlio performance by moving wei in or out of AUM wallet
+# 3.    change the value of tokens by changing the wei-token rate
+# 4.    similate the purchase of tokens at different conversion rate than 1:1
+#       should be part of TokenTimeFund.sol
